@@ -1,165 +1,144 @@
-(() => {
-    const LANGUAGE = "EN";
-    const WORDS = {
-      EN: {
-        followsYouText: "Follows you",
-        followingButtonText: "Following",
-        confirmationButtonText: "Unfollow"
-      },
-      ES: {
-        followsYouText: "Te sigue",
-        followingButtonText: "Siguiendo",
-        confirmationButtonText: "Dejar de seguir"
-      },
-      PT: {
-        followsYouText: "Segue você",
-        followingButtonText: "Seguindo",
-        confirmationButtonText: "Deixar de Seguir"
-      },
-      ID: {
-        followsYouText: "Mengikuti Kamu",
-        followingButtonText: "Mengikuti",
-        confirmationButtonText: "Tidak Mengikuti"
-      },
-      TR: {
-        followsYouText: "Seni takip ediyor",
-        followingButtonText: "Takip ediliyor",
-        confirmationButtonText: "Takibi bırak"
-      }
-    };
-  
-    const UNFOLLOW_FOLLOWERS = false;
-    const MS_PER_CYCLE = 10;
-    const MAXIMUM_UNFOLLOW_ACTIONS_PER_CYCLE = null;
-    const MAXIMUM_UNFOLLOW_ACTIONS_TOTAL = null;
-    const SKIP_USERS = [
-      "user_name_to_skip_example_1",
-      "user_name_to_skip_example_2",
-      "user_name_to_skip_example_3"
-    ].map(user => user.toLowerCase());
-  
-    let _UNFOLLOWED_TOTAL = 0;
-  
-    function performUnfollow(
-      followsYouText = WORDS[LANGUAGE].followsYouText,
-      followingButtonText = WORDS[LANGUAGE].followingButtonText,
-      confirmationButtonText = WORDS[LANGUAGE].confirmationButtonText,
-      unfollowFollowers = UNFOLLOW_FOLLOWERS,
-      maximumUnfollowActionsPerCycle = MAXIMUM_UNFOLLOW_ACTIONS_PER_CYCLE,
-      maximumUnfollowActionsTotal = MAXIMUM_UNFOLLOW_ACTIONS_TOTAL
-    ) {
-      let unfollowed = 0;
-  
-      maximumUnfollowActionsTotal = parseInt(maximumUnfollowActionsTotal);
-      if (isNaN(maximumUnfollowActionsTotal)) maximumUnfollowActionsTotal = null;
-  
-      maximumUnfollowActionsPerCycle = parseInt(maximumUnfollowActionsPerCycle);
-      if (isNaN(maximumUnfollowActionsPerCycle)) maximumUnfollowActionsPerCycle = null;
-  
-      let totalLimitReached = false;
-      let localLimitReached = false;
-  
-      const userContainers = document.querySelectorAll('[data-testid=UserCell]');
-      Array.from(userContainers).forEach(userContainer => {
-        if (totalLimitReached || localLimitReached) return;
-  
-        if (
-          maximumUnfollowActionsTotal !== null &&
-          _UNFOLLOWED_TOTAL >= maximumUnfollowActionsTotal
-        ) {
-          console.log(
-            "Exiting! Limit of unfollow actions in total reached: " +
-              maximumUnfollowActionsTotal
-          );
-          totalLimitReached = true;
-          return;
-        }
-  
-        if (
-          maximumUnfollowActionsPerCycle !== null &&
-          unfollowed >= maximumUnfollowActionsPerCycle
-        ) {
-          console.log(
-            "Exiting! Limit of unfollow actions per cycle reached: " +
-              maximumUnfollowActionsPerCycle
-          );
-          localLimitReached = true;
-          return;
-        }
-  
-        let followsYou = false;
-        if (!unfollowFollowers) {
-          followsYou = Array.from(userContainer.querySelectorAll("*")).some(
-            element => element.textContent === followsYouText
-          );
-        }
-  
-        if (!followsYou) {
-          let skipUser = false;
-          let userName = "";
-  
-          Array.from(userContainer.querySelectorAll("[href^='/']")).forEach(
-            element => {
-              if (skipUser) return;
-              if (
-                element.href.includes("search?q=") ||
-                !element.href.includes("/")
-              )
-                return;
-              userName = element.href
-                .substring(element.href.lastIndexOf("/") + 1)
-                .toLowerCase();
-              Array.from(element.querySelectorAll("*")).some(subElement => {
-                if (subElement.textContent.toLowerCase() === "@" + userName) {
-                  if (SKIP_USERS.includes(userName)) {
-                    console.log("We want to skip: " + userName);
-                    skipUser = true;
-                    return true;
-                  }
-                }
-                return false;
-              });
-            }
-          );
-  
-          if (!skipUser) {
-            Array.from(
-              userContainer.querySelectorAll('[role=button]')
-            ).some(element => {
-              if (element.textContent === followingButtonText) {
-                console.log("* Unfollowing: " + userName);
-                element.click();
-                unfollowed++;
-                _UNFOLLOWED_TOTAL++;
-                return true;
-              }
-              return false;
-            });
-          }
-        }
-      });
-  
-      Array.from(document.querySelectorAll('[role=button]')).some(element => {
-        if (element.textContent === confirmationButtonText) {
-          element.click();
-          return true;
-        }
-        return false;
-      });
-  
-      return totalLimitReached ? null : unfollowed;
+// Configuration object to keep settings centralized
+const CONFIG = {
+  LANGUAGE: 'EN',
+  UNFOLLOW_FOLLOWERS: false,
+  MS_PER_CYCLE: 10,
+  MAX_ACTIONS_PER_CYCLE: null,
+  MAX_ACTIONS_TOTAL: null,
+  SKIP_USERS: new Set([
+    'user_name_to_skip_example_1',
+    'user_name_to_skip_example_2',
+    'user_name_to_skip_example_3'
+  ].map(user => user.toLowerCase()))
+};
+
+// Language definitions
+const LOCALIZATION = {
+  EN: {
+    followsYou: 'Follows you',
+    following: 'Following', 
+    unfollow: 'Unfollow'
+  },
+  ES: {
+    followsYou: 'Te sigue',
+    following: 'Siguiendo',
+    unfollow: 'Dejar de seguir'
+  },
+  PT: {
+    followsYou: 'Segue você',
+    following: 'Seguindo',
+    unfollow: 'Deixar de Seguir'
+  },
+  ID: {
+    followsYou: 'Mengikuti Kamu',
+    following: 'Mengikuti',
+    unfollow: 'Tidak Mengikuti'
+  },
+  TR: {
+    followsYou: 'Seni takip ediyor',
+    following: 'Takip ediliyor',
+    unfollow: 'Takibi bırak'
+  }
+};
+
+class TwitterUnfollower {
+  constructor() {
+    this.unfollowedTotal = 0;
+    this.texts = LOCALIZATION[CONFIG.LANGUAGE];
+  }
+
+  async start() {
+    try {
+      await this.scrollAndUnfollow();
+    } catch (error) {
+      console.error('Error during unfollow process:', error);
     }
-  
-    function scrollAndUnfollow() {
-      window.scrollTo(0, document.body.scrollHeight);
-      const unfollowed = performUnfollow();
-      if (unfollowed !== null) {
-        setTimeout(scrollAndUnfollow, MS_PER_CYCLE);
-      } else {
-        console.log("Total desired unfollow actions performed!");
+  }
+
+  async scrollAndUnfollow() {
+    window.scrollTo(0, document.body.scrollHeight);
+    const unfollowed = await this.performUnfollow();
+    
+    if (unfollowed !== null) {
+      setTimeout(() => this.scrollAndUnfollow(), CONFIG.MS_PER_CYCLE);
+    } else {
+      console.log('✅ Unfollow process completed!');
+    }
+  }
+
+  async performUnfollow() {
+    let unfollowed = 0;
+    const userCells = document.querySelectorAll('[data-testid=UserCell]');
+
+    for (const userCell of userCells) {
+      if (this.shouldStopUnfollowing(unfollowed)) {
+        return null;
+      }
+
+      const userName = this.extractUserName(userCell);
+      if (!userName || CONFIG.SKIP_USERS.has(userName.toLowerCase())) {
+        continue;
+      }
+
+      if (await this.shouldUnfollowUser(userCell)) {
+        await this.unfollowUser(userCell, userName);
+        unfollowed++;
+        this.unfollowedTotal++;
       }
     }
-  
-    scrollAndUnfollow();
-  })();
-  
+
+    await this.handleConfirmationDialog();
+    return unfollowed;
+  }
+
+  shouldStopUnfollowing(currentUnfollowed) {
+    if (CONFIG.MAX_ACTIONS_TOTAL && this.unfollowedTotal >= CONFIG.MAX_ACTIONS_TOTAL) {
+      console.log(`Reached total limit: ${CONFIG.MAX_ACTIONS_TOTAL}`);
+      return true;
+    }
+    
+    if (CONFIG.MAX_ACTIONS_PER_CYCLE && currentUnfollowed >= CONFIG.MAX_ACTIONS_PER_CYCLE) {
+      console.log(`Reached cycle limit: ${CONFIG.MAX_ACTIONS_PER_CYCLE}`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  extractUserName(userCell) {
+    const userLink = userCell.querySelector('a[href^="/"][href*="/"]:not([href*="search?q="])');
+    return userLink?.href.split('/').pop();
+  }
+
+  async shouldUnfollowUser(userCell) {
+    if (CONFIG.UNFOLLOW_FOLLOWERS) {
+      return true;
+    }
+    
+    return !Array.from(userCell.querySelectorAll('*'))
+      .some(element => element.textContent === this.texts.followsYou);
+  }
+
+  async unfollowUser(userCell, userName) {
+    const followingButton = Array.from(userCell.querySelectorAll('[role=button]'))
+      .find(button => button.textContent === this.texts.following);
+      
+    if (followingButton) {
+      console.log(`🔄 Unfollowing: ${userName}`);
+      followingButton.click();
+    }
+  }
+
+  async handleConfirmationDialog() {
+    const confirmButton = Array.from(document.querySelectorAll('[role=button]'))
+      .find(button => button.textContent === this.texts.unfollow);
+      
+    if (confirmButton) {
+      confirmButton.click();
+    }
+  }
+}
+
+// Initialize and start the unfollower
+const unfollower = new TwitterUnfollower();
+unfollower.start();
